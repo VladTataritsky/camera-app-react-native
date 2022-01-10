@@ -1,27 +1,37 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow strict-local
- */
-
-import React from 'react';
+import React, {useState} from 'react';
 import {
   StyleSheet,
   Text,
   View,
-  TouchableOpacity
+  TouchableOpacity,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
-import { RNCamera } from 'react-native-camera';
+import {RNCamera} from 'react-native-camera';
+import CameraRoll from '@react-native-community/cameraroll';
+import Icon from 'react-native-vector-icons/FontAwesome';
 
+const App = () => {
+  const [isFlashEnabled, toggleFlash] = useState(false);
+  const hasAndroidPermission = async () => {
+    const permission = PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE;
 
-const App = ()  => {
-  const takePicture = async function(camera) {
-    const options = { quality: 0.5, base64: true };
+    const hasPermission = await PermissionsAndroid.check(permission);
+    if (hasPermission) {
+      return true;
+    }
+
+    const status = await PermissionsAndroid.request(permission);
+    return status === 'granted';
+  };
+  const takePicture = async function (camera) {
+    if (Platform.OS === 'android' && !(await hasAndroidPermission())) {
+      return;
+    }
+
+    const options = {quality: 0.5, base64: true};
     const data = await camera.takePictureAsync(options);
-    //  eslint-disable-next-line
-    console.log(data.uri);
+    CameraRoll.save(data.uri, {type: 'photo'});
   };
 
   return (
@@ -29,26 +39,35 @@ const App = ()  => {
       <RNCamera
         style={styles.preview}
         type={RNCamera.Constants.Type.back}
-        flashMode={RNCamera.Constants.FlashMode.on}
+        flashMode={
+          isFlashEnabled
+            ? RNCamera.Constants.FlashMode.on
+            : RNCamera.Constants.FlashMode.off
+        }
         androidCameraPermissionOptions={{
           title: 'Permission to use camera',
           message: 'We need your permission to use your camera',
           buttonPositive: 'Ok',
           buttonNegative: 'Cancel',
-        }}
-        androidRecordAudioPermissionOptions={{
-          title: 'Permission to use audio recording',
-          message: 'We need your permission to use your audio',
-          buttonPositive: 'Ok',
-          buttonNegative: 'Cancel',
-        }}
-      >
-        {({ camera, status, recordAudioPermissionStatus }) => {
+        }}>
+        {({camera, status}) => {
           if (status !== 'READY') return <Text>Pending</Text>;
           return (
-            <View style={{ flex: 0, flexDirection: 'row', justifyContent: 'center' }}>
-              <TouchableOpacity onPress={() => takePicture(camera)} style={styles.capture}>
-                <Text style={{ fontSize: 14 }}> SNAP </Text>
+            <View style={styles.action_pannel}>
+              <TouchableOpacity
+                onPress={() => toggleFlash(!isFlashEnabled)}
+                style={styles.action_button}>
+                <Icon name="flash" size={34} textAlign={'center'} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => takePicture(camera)}
+                style={styles.action_button}>
+                <Icon name="camera" size={34} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => getPhotos()}
+                style={styles.action_button}>
+                <Icon name="rotate-left" size={34} />
               </TouchableOpacity>
             </View>
           );
@@ -64,19 +83,30 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     backgroundColor: 'black',
   },
+  action_pannel: {
+    flex: 0,
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    justifyContent: 'space-around',
+  },
   preview: {
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
-  capture: {
+  action_button: {
     flex: 0,
-    backgroundColor: '#fff',
-    borderRadius: 5,
-    padding: 15,
-    paddingHorizontal: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 70,
+    height: 70,
+    backgroundColor: 'rgba(255, 255, 255, 1)',
+    borderRadius: 35,
+    padding: 10,
     alignSelf: 'center',
-    margin: 20,
+    margin: 16,
   },
 });
 
