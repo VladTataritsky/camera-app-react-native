@@ -1,55 +1,39 @@
-import React, {useState} from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  TouchableOpacity,
-  PermissionsAndroid,
-  Platform,
-} from 'react-native';
+import React, {useState, useCallback} from 'react';
+import {StyleSheet, Text, View, TouchableOpacity} from 'react-native';
 import {RNCamera} from 'react-native-camera';
 import CameraRoll from '@react-native-community/cameraroll';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import Icon from 'react-native-vector-icons/Ionicons';
 
-const App = () => {
+const androidCameraPermissionOptions = {
+  title: 'Permission to use camera',
+  message: 'We need your permission to use your camera',
+  buttonPositive: 'Ok',
+  buttonNegative: 'Cancel',
+};
+
+const CameraApp = () => {
   const [isFlashEnabled, toggleFlash] = useState(false);
-  const hasAndroidPermission = async () => {
-    const permission = PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE;
+  const [isFrontCamera, toggleCameraType] = useState(false);
+  const {Type, FlashMode} = RNCamera.Constants;
 
-    const hasPermission = await PermissionsAndroid.check(permission);
-    if (hasPermission) {
-      return true;
-    }
-
-    const status = await PermissionsAndroid.request(permission);
-    return status === 'granted';
-  };
-  const takePicture = async function (camera) {
-    if (Platform.OS === 'android' && !(await hasAndroidPermission())) {
+  const takePicture = useCallback(async camera => {
+    if (!(await hasAndroidPermission())) {
       return;
     }
 
-    const options = {quality: 0.5, base64: true};
+    const options = {quality: 1, base64: true};
     const data = await camera.takePictureAsync(options);
     CameraRoll.save(data.uri, {type: 'photo'});
-  };
+  }, []);
 
   return (
     <View style={styles.container}>
       <RNCamera
         style={styles.preview}
-        type={RNCamera.Constants.Type.back}
-        flashMode={
-          isFlashEnabled
-            ? RNCamera.Constants.FlashMode.on
-            : RNCamera.Constants.FlashMode.off
-        }
-        androidCameraPermissionOptions={{
-          title: 'Permission to use camera',
-          message: 'We need your permission to use your camera',
-          buttonPositive: 'Ok',
-          buttonNegative: 'Cancel',
-        }}>
+        type={isFrontCamera ? Type.front : Type.back}
+        flashMode={isFlashEnabled ? FlashMode.on : FlashMode.off}
+        captureAudio={false}
+        androidCameraPermissionOptions={androidCameraPermissionOptions}>
         {({camera, status}) => {
           if (status !== 'READY') return <Text>Pending</Text>;
           return (
@@ -57,17 +41,17 @@ const App = () => {
               <TouchableOpacity
                 onPress={() => toggleFlash(!isFlashEnabled)}
                 style={styles.action_button}>
-                <Icon name="flash" size={34} textAlign={'center'} />
+                <Icon name={isFlashEnabled ? 'flash' : 'flash-off'} size={40} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => takePicture(camera)}
                 style={styles.action_button}>
-                <Icon name="camera" size={34} />
+                <Icon name="camera" size={40} />
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => getPhotos()}
+                onPress={() => toggleCameraType(!isFrontCamera)}
                 style={styles.action_button}>
-                <Icon name="rotate-left" size={34} />
+                <Icon name="md-sync" size={40} />
               </TouchableOpacity>
             </View>
           );
@@ -110,4 +94,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default App;
+export default CameraApp;
