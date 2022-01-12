@@ -1,4 +1,5 @@
 import React, {useState, useCallback} from 'react';
+import {hasAndroidPermission} from './helper';
 import {StyleSheet, Text, View, TouchableOpacity} from 'react-native';
 import {RNCamera} from 'react-native-camera';
 import CameraRoll from '@react-native-community/cameraroll';
@@ -14,6 +15,7 @@ const androidCameraPermissionOptions = {
 const CameraApp = () => {
   const [isFlashEnabled, toggleFlash] = useState(false);
   const [isFrontCamera, toggleCameraType] = useState(false);
+  const [isRetakeModeOn, toggleRetakeMode] = useState(false);
   const {Type, FlashMode} = RNCamera.Constants;
 
   const takePicture = useCallback(async camera => {
@@ -21,10 +23,25 @@ const CameraApp = () => {
       return;
     }
 
+    if (isRetakeModeOn) {
+      try {
+        const lastPhoto = await CameraRoll.getPhotos({first: 1});
+        const {uri} = lastPhoto.edges[0].node.image;
+        await CameraRoll.deletePhotos([uri]);
+        toggleRetakeMode(!isRetakeModeOn);
+      } catch (err) {
+        console.log(err);
+      }
+    }
+
     const options = {quality: 1, base64: true};
-    const data = await camera.takePictureAsync(options);
-    CameraRoll.save(data.uri, {type: 'photo'});
-  }, []);
+    try {
+      const data = await camera.takePictureAsync(options);
+      await CameraRoll.save(data.uri, {type: 'photo'});
+    } catch (err) {
+      console.log(err);
+    }
+  }, [toggleRetakeMode, isRetakeModeOn]);
 
   return (
     <View style={styles.container}>
@@ -47,6 +64,16 @@ const CameraApp = () => {
                 onPress={() => takePicture(camera)}
                 style={styles.action_button}>
                 <Icon name="camera" size={40} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => toggleRetakeMode(!isRetakeModeOn)}
+                style={styles.action_button}>
+                <Icon
+                  name={
+                    isRetakeModeOn ? 'camera-reverse' : 'camera-reverse-outline'
+                  }
+                  size={40}
+                />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => toggleCameraType(!isFrontCamera)}
